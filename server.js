@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 mongoose.connect(
-"mongodb+srv://toshankanwar03_db_user:uSCqOralOPe3snHs@fiidii-databse.hgvxszn.mongodb.net/market"
+"mongodb+srv://toshankanwar03_db_user:uSCqOralOPe3snHs@fiidii-databse.hgvxszn.mongodb.net:27017/market"
 )
 .then(()=>console.log("MongoDB connected"))
 .catch(err=>console.log(err));
