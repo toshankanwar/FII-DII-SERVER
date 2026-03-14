@@ -114,38 +114,38 @@ router.get("/week", async (req, res) => {
 
 // MONTH - with optional year and month query parameters
 router.get("/month", async (req, res) => {
-  try {
-    const today = new Date();
-
-    // Get year and month from query params, default to current
-    let year = parseInt(req.query.year) || today.getFullYear();
-    let month = parseInt(req.query.month) || today.getMonth() + 1;
-
-    console.log(`📊 Fetching FII/DII for ${month}/${year}`);
-
-    // Validate month and year
-    if (month < 1 || month > 12) {
-      return res.status(400).json({ error: "Invalid month. Must be between 1 and 12" });
+    try {
+      const today = new Date();
+  
+      // Get year and month from query params, default to current
+      let year = parseInt(req.query.year) || today.getFullYear();
+      let month = parseInt(req.query.month) || today.getMonth() + 1;
+  
+      console.log(`📊 Fetching FII/DII for ${month}/${year}`);
+  
+      // Validate month and year
+      if (month < 1 || month > 12) {
+        return res.status(400).json({ error: "Invalid month. Must be between 1 and 12" });
+      }
+  
+      if (year < 2000 || year > 2100) {
+        return res.status(400).json({ error: "Invalid year. Must be between 2000 and 2100" });
+      }
+  
+      // Query database with EXACT month and year match
+      const data = await FIIDII.find({
+        year: year,
+        month: month,
+      }).sort({ date: -1 });
+  
+      console.log(`✅ Found ${data.length} records for ${month}/${year}`);
+  
+      res.json(data || []);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: err.message });
     }
-
-    if (year < 2000 || year > 2100) {
-      return res.status(400).json({ error: "Invalid year. Must be between 2000 and 2100" });
-    }
-
-    const data = await FIIDII.find({
-      year: year,
-      month: month,
-    }).sort({ date: -1 });
-
-    console.log(`✅ Found ${data.length} records for ${month}/${year}`);
-
-    res.json(data || []);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
+  });
 // YEAR - with optional year query parameter
 router.get("/year", async (req, res) => {
   try {
