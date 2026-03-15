@@ -145,7 +145,8 @@ router.get("/month", async (req, res) => {
       console.log(err);
       res.status(500).json({ error: err.message });
     }
-  });
+});
+
 // YEAR - with optional year query parameter
 router.get("/year", async (req, res) => {
   try {
@@ -347,6 +348,176 @@ router.get("/stats/month", async (req, res) => {
     res.json(stats);
   } catch (err) {
     console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== POST: Manually insert single FII/DII record =====
+router.post("/add-single", async (req, res) => {
+  try {
+    const {
+      dateString,
+      year,
+      month,
+      day,
+      fiiBuyValue,
+      fiiSellValue,
+      diiBuyValue,
+      diiSellValue
+    } = req.body;
+
+    // Validate required fields
+    if (!dateString || !year || !month || !day) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Create date object
+    const date = new Date(year, month - 1, day);
+
+    // Calculate net values
+    const fiiNetValue = (parseFloat(fiiBuyValue) || 0) - (parseFloat(fiiSellValue) || 0);
+    const diiNetValue = (parseFloat(diiBuyValue) || 0) - (parseFloat(diiSellValue) || 0);
+
+    // Check if record already exists
+    const existing = await FIIDII.findOne({
+      year: parseInt(year),
+      month: parseInt(month),
+      day: parseInt(day)
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: `Data already exists for ${dateString}` });
+    }
+
+    // Create new record
+    const newRecord = await FIIDII.create({
+      date,
+      dateString,
+      year: parseInt(year),
+      month: parseInt(month),
+      week: Math.ceil(parseInt(day) / 7),
+      day: parseInt(day),
+      fiiBuyValue: parseFloat(fiiBuyValue) || 0,
+      fiiSellValue: parseFloat(fiiSellValue) || 0,
+      fiiNetValue,
+      diiBuyValue: parseFloat(diiBuyValue) || 0,
+      diiSellValue: parseFloat(diiSellValue) || 0,
+      diiNetValue
+    });
+
+    res.status(201).json({
+      message: "Record added successfully",
+      data: newRecord
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== POST: Bulk insert multiple records =====
+router.post("/add-bulk", async (req, res) => {
+  try {
+    const { records } = req.body;
+
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ error: "Records must be an array" });
+    }
+
+    const formattedRecords = records.map(record => {
+      const fiiNetValue = (parseFloat(record.fiiBuyValue) || 0) - (parseFloat(record.fiiSellValue) || 0);
+      const diiNetValue = (parseFloat(record.diiBuyValue) || 0) - (parseFloat(record.diiSellValue) || 0);
+
+      return {
+        date: new Date(record.year, record.month - 1, record.day),
+        dateString: record.dateString,
+        year: parseInt(record.year),
+        month: parseInt(record.month),
+        week: Math.ceil(parseInt(record.day) / 7),
+        day: parseInt(record.day),
+        fiiBuyValue: parseFloat(record.fiiBuyValue) || 0,
+        fiiSellValue: parseFloat(record.fiiSellValue) || 0,
+        fiiNetValue,
+        diiBuyValue: parseFloat(record.diiBuyValue) || 0,
+        diiSellValue: parseFloat(record.diiSellValue) || 0,
+        diiNetValue
+      };
+    });
+
+    const result = await FIIDII.insertMany(formattedRecords, { ordered: false });
+
+    res.status(201).json({
+      message: `${result.length} records added successfully`,
+      count: result.length,
+      data: result
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      res.status(400).json({ error: "Some records already exist (duplicates)" });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+// ===== PUT: Update existing record =====
+router.put("/update/:year/:month/:day", async (req, res) => {
+  try {
+    const { year, month, day } = req.params;
+    const { fiiBuyValue, fiiSellValue, diiBuyValue, diiSellValue } = req.body;
+
+    const fiiNetValue = (parseFloat(fiiBuyValue) || 0) - (parseFloat(fiiSellValue) || 0);
+    const diiNetValue = (parseFloat(diiBuyValue) || 0) - (parseFloat(diiSellValue) || 0);
+
+    const updated = await FIIDII.findOneAndUpdate(
+      {
+        year: parseInt(year),
+        month: parseInt(month),
+        day: parseInt(day)
+      },
+      {
+        fiiBuyValue: parseFloat(fiiBuyValue) || 0,
+        fiiSellValue: parseFloat(fiiSellValue) || 0,
+        fiiNetValue,
+        diiBuyValue: parseFloat(diiBuyValue) || 0,
+        diiSellValue: parseFloat(diiSellValue) || 0,
+        diiNetValue
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Record not found" });
+    }
+
+    res.json({
+      message: "Record updated successfully",
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== DELETE record =====
+router.delete("/delete/:year/:month/:day", async (req, res) => {
+  try {
+    const { year, month, day } = req.params;
+
+    const deleted = await FIIDII.findOneAndDelete({
+      year: parseInt(year),
+      month: parseInt(month),
+      day: parseInt(day)
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Record not found" });
+    }
+
+    res.json({
+      message: "Record deleted successfully",
+      data: deleted
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
