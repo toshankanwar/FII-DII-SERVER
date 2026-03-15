@@ -21,7 +21,7 @@ router.post("/start", (req, res) => {
   // Call ping every 7 minutes
   keepAliveTimer = setInterval(async () => {
     try {
-      await axios.get("http://localhost:5000/api/keepalive/ping");
+      await axios.get("https://api.fiidii.toshankanwar.in/api/keepalive/ping");
       console.log("📍 Ping sent:", new Date().toLocaleTimeString());
     } catch (err) {
       console.error("❌ Ping failed:", err.message);
