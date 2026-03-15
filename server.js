@@ -5,7 +5,7 @@ import axios from "axios";
 
 import fiidiiRoutes from "./routes/fiidiiRoutes.js";
 import keepAliveRoutes from "./routes/keepAliveRoutes.js";
-
+import companyRoutes from "./routes/companyRoutes.js";
 const app = express();
 
 app.use(cors());
@@ -20,6 +20,7 @@ mongoose.connect(
 
 app.use("/api/fiidii",fiidiiRoutes);
 app.use("/api/keepalive",keepAliveRoutes);
+app.use("/api/company", companyRoutes);
 
 
 app.get("/",(req,res)=>{
