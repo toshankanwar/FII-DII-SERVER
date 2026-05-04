@@ -28,14 +28,6 @@ app.get("/",(req,res)=>{
 });
 
 
-// Auto-start keep-alive
-setTimeout(() => {
-  axios.post("https://api.fiidii.toshankanwar.in/api/keepalive/start")
-    .then(() => console.log("Keep-alive auto-started"))
-    .catch(err => console.error("Keep-alive failed:", err.message));
-}, 2000);
-
-
 app.listen(5000,()=>{
  console.log("Server running on port 5000");
 });
