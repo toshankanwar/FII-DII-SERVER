@@ -1,6 +1,8 @@
 import express from "express";
 import axios from "axios";
 import FIIDII from "../models/FIIDII.js";
+import { CookieJar } from "tough-cookie";
+import { wrapper } from "axios-cookiejar-support";
 
 const router = express.Router();
 
@@ -29,23 +31,53 @@ function parseNSEDate(dateStr) {
 // UPDATE DAILY DATA
 router.get("/update", async (req, res) => {
   try {
-    const url = "https://www.nseindia.com/api/fiidiiTradeReact";
+    const jar = new CookieJar();
 
-    const response = await axios.get(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Referer: "https://www.nseindia.com/",
-      },
-    });
+    const client = wrapper(
+      axios.create({
+        jar,
+        withCredentials: true,
+        timeout: 30000,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          Referer: "https://www.nseindia.com/",
+          Origin: "https://www.nseindia.com",
+          Connection: "keep-alive",
+        },
+      })
+    );
+
+    // Create NSE session and obtain cookies
+    await client.get("https://www.nseindia.com/");
+
+    // Small delay
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Fetch FII/DII data
+    const response = await client.get(
+      "https://www.nseindia.com/api/fiidiiTradeReact"
+    );
 
     const data = response.data;
 
     const fii = data.find((d) => d.category === "FII/FPI");
     const dii = data.find((d) => d.category === "DII");
 
+    if (!fii || !dii) {
+      return res.status(500).json({
+        success: false,
+        error: "FII/DII data not found",
+      });
+    }
+
     const date = parseNSEDate(fii.date);
 
-    const toNum = (v) => Number(v) || 0;
+    const toNum = (v) =>
+      Number(String(v).replace(/,/g, "")) || 0;
 
     await FIIDII.updateOne(
       { date },
@@ -69,10 +101,24 @@ router.get("/update", async (req, res) => {
       { upsert: true }
     );
 
-    res.json({ message: "data saved" });
+    return res.json({
+      success: true,
+      message: "FII/DII data updated successfully",
+      date: fii.date,
+    });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
+    console.error("NSE ERROR:", {
+      status: err.response?.status,
+      headers: err.response?.headers,
+      data: err.response?.data,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      status: err.response?.status,
+      response: err.response?.data,
+    });
   }
 });
 
